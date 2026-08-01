@@ -2,6 +2,7 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const messageInput = document.getElementById('messageInput');
 const quickButtons = document.querySelectorAll('.quick-btn');
+const backendUrl = '/api/chat';
 
 const greeting = {
   role: 'bot',
@@ -25,6 +26,27 @@ function addMessage(role, text) {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+async function fetchBackendResponse(userText) {
+  try {
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: userText })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data.reply || null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function generateResponse(userText) {
   const normalized = userText.toLowerCase();
 
@@ -32,30 +54,30 @@ function generateResponse(userText) {
     return 'Please tell me what you need help with.';
   }
 
-  if (normalized.includes('service') || normalized.includes('survey') || normalized.includes('engineering')) {
+  if (normalized.includes('service') || normalized.includes('survey') || normalized.includes('engineering') || normalized.includes('design') || normalized.includes('planning')) {
     return fallbackResponses.service;
   }
 
-  if (normalized.includes('quote') || normalized.includes('price') || normalized.includes('estimate') || normalized.includes('cost')) {
+  if (normalized.includes('quote') || normalized.includes('price') || normalized.includes('estimate') || normalized.includes('cost') || normalized.includes('proposal')) {
     return fallbackResponses.quote;
   }
 
-  if (normalized.includes('timeline') || normalized.includes('deliver') || normalized.includes('days') || normalized.includes('schedule')) {
+  if (normalized.includes('timeline') || normalized.includes('deliver') || normalized.includes('days') || normalized.includes('schedule') || normalized.includes('lead time') || normalized.includes('shipping')) {
     return fallbackResponses.timeline;
   }
 
-  if (normalized.includes('contact') || normalized.includes('support') || normalized.includes('email') || normalized.includes('phone')) {
+  if (normalized.includes('contact') || normalized.includes('support') || normalized.includes('email') || normalized.includes('phone') || normalized.includes('reach')) {
     return fallbackResponses.contact;
   }
 
-  if (normalized.includes('order') || normalized.includes('invoice') || normalized.includes('bill')) {
+  if (normalized.includes('order') || normalized.includes('invoice') || normalized.includes('bill') || normalized.includes('purchase')) {
     return fallbackResponses.order;
   }
 
   return fallbackResponses.default;
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
   const userText = messageInput.value.trim();
   if (!userText) return;
@@ -64,8 +86,14 @@ function handleSubmit(event) {
   messageInput.value = '';
   addMessage('bot', 'Thinking…');
 
-  const response = generateResponse(userText);
-  chatMessages.removeChild(chatMessages.lastChild);
+  const backendReply = await fetchBackendResponse(userText);
+  const response = backendReply || generateResponse(userText);
+
+  const lastBubble = chatMessages.lastChild;
+  if (lastBubble && lastBubble.classList.contains('bot') && lastBubble.textContent === 'Thinking…') {
+    chatMessages.removeChild(lastBubble);
+  }
+
   addMessage('bot', response);
 }
 
