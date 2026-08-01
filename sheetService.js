@@ -243,6 +243,14 @@ const exportedApi = {
   fetchGoogleSheetData
 };
 
+if (typeof window !== 'undefined') {
+  window.rockwellSheetService = exportedApi;
+}
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.rockwellSheetService = exportedApi;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = exportedApi;
 }

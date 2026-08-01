@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 const { parseGoogleSheetPayload, formatSheetRowsForPrompt, buildSheetAnswer, buildSheetReply } = require('../sheetService');
 
 test('parses Google visualization rows into simple objects', () => {
@@ -69,4 +72,28 @@ test('builds a fallback reply from sheet rows when no AI backend is available', 
   const reply = buildSheetReply('How much is the Residential Structural Survey?', rows);
 
   assert.match(reply, /650/);
+});
+
+test('exposes the sheet service on window for browser use', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'sheetService.js'), 'utf8');
+  const context = {
+    window: {},
+    document: {},
+    console,
+    setTimeout,
+    clearTimeout,
+    URL,
+    Buffer,
+    module: { exports: {} },
+    exports: {},
+    require,
+    globalThis: {}
+  };
+  context.window = context;
+  context.globalThis = context;
+
+  vm.runInNewContext(source, context, { filename: 'sheetService.js' });
+
+  assert.ok(context.window.rockwellSheetService);
+  assert.equal(typeof context.window.rockwellSheetService.buildSheetReply, 'function');
 });
