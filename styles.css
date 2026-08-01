@@ -1,12 +1,13 @@
 :root {
   color-scheme: dark;
-  --bg: #07121f;
-  --panel: rgba(10, 23, 40, 0.92);
-  --border: rgba(148, 163, 184, 0.2);
+  --bg: #07131f;
+  --panel: rgba(10, 24, 48, 0.92);
+  --border: rgba(147, 197, 253, 0.28);
   --text: #f8fafc;
-  --muted: #9fb0c8;
-  --accent: #5eead4;
-  --accent-strong: #2dd4bf;
+  --muted: #b7c8e3;
+  --accent: #8ec5ff;
+  --accent-strong: #3b82f6;
+  --metallic: linear-gradient(135deg, #4f7db8 0%, #8ec5ff 35%, #2f5f97 100%);
 }
 
 * {
@@ -16,7 +17,7 @@
 body {
   margin: 0;
   font-family: Inter, "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(135deg, #07121f 0%, #1e293b 100%);
+  background: radial-gradient(circle at top left, #7fb9ff 0%, #0f2f57 40%, #07131f 100%);
   color: var(--text);
   min-height: 100vh;
 }
@@ -33,7 +34,7 @@ body {
   display: grid;
   gap: 24px;
   grid-template-columns: 1.05fr 0.95fr;
-  background: var(--panel);
+  background: linear-gradient(135deg, rgba(12, 27, 53, 0.96) 0%, rgba(20, 43, 81, 0.95) 100%);
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: 28px;
@@ -74,10 +75,11 @@ h1 {
 }
 
 .quick-btn {
-  background: rgba(94, 234, 212, 0.15);
+  background: rgba(142, 197, 255, 0.16);
   color: var(--accent);
   padding: 10px 14px;
   font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .quick-btn:hover,
@@ -115,8 +117,8 @@ h1 {
 }
 
 .status-pill {
-  background: rgba(45, 212, 191, 0.18);
-  color: var(--accent);
+  background: rgba(59, 130, 246, 0.2);
+  color: #dbeafe;
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 0.84rem;
@@ -142,7 +144,8 @@ h1 {
 
 .message.user {
   align-self: flex-end;
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  background: var(--metallic);
+  color: #f8fbff;
 }
 
 .message.bot {
@@ -168,10 +171,11 @@ h1 {
 }
 
 .chat-form button {
-  background: var(--accent-strong);
-  color: #042f2e;
+  background: var(--metallic);
+  color: #f8fbff;
   padding: 0 16px;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 900px) {
