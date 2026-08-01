@@ -14,6 +14,37 @@ const greeting = {
   text: 'Hello! I am Claude, your Rockwell support assistant. I can help with surveys, engineering support, pricing, delivery timelines, and how to contact the team.'
 };
 
+async function fetchSheetFallbackAnswer(userText) {
+  if (!sheetUrl || !window.rockwellSheetService) {
+    return null;
+  }
+
+  try {
+    const normalizedUrl = window.rockwellSheetService.normalizeGoogleSheetUrl(sheetUrl);
+    const response = await fetch(normalizedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!response.ok) {
+      return null;
+    }
+
+    const text = await response.text();
+    const rows = window.rockwellSheetService.parseGoogleSheetPayload(text);
+    const match = window.rockwellSheetService.findBestSheetMatch(rows, userText);
+
+    if (!match) {
+      return null;
+    }
+
+    const answerValues = Object.entries(match)
+      .filter(([key]) => key.toLowerCase() !== 'service_id')
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(' | ');
+
+    return answerValues || null;
+  } catch (error) {
+    return null;
+  }
+}
+
 const fallbackResponses = {
   default: 'I can help with project scope, site surveys, engineering support, quotes, delivery timing, and contact details. Tell me what you need and I will help you right away.',
   service: 'Rockwell Site Surveys Engineering provides site survey planning, engineering support, technical documentation, and project coordination for clients needing dependable field and design assistance.',
@@ -96,7 +127,8 @@ async function handleSubmit(event) {
   addMessage('bot', 'Thinking…');
 
   const backendReply = await fetchBackendResponse(userText);
-  const response = backendReply || generateResponse(userText);
+  const sheetReply = backendReply ? null : await fetchSheetFallbackAnswer(userText);
+  const response = backendReply || sheetReply || generateResponse(userText);
 
   const lastBubble = chatMessages.lastChild;
   if (lastBubble && lastBubble.classList.contains('bot') && lastBubble.textContent === 'Thinking…') {

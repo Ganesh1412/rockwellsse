@@ -80,6 +80,37 @@ function formatSheetRowsForPrompt(rows, maxRows = 20) {
     .join('\n');
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function findBestSheetMatch(rows, message) {
+  if (!Array.isArray(rows) || rows.length === 0 || !message || !message.trim()) {
+    return null;
+  }
+
+  const normalizedMessage = normalizeText(message);
+  const messageTokens = new Set(normalizedMessage.split(/\s+/).filter(Boolean));
+
+  const scored = rows
+    .map((row) => {
+      const rowText = Object.values(row)
+        .filter((value) => value != null && String(value).trim())
+        .map((value) => normalizeText(value))
+        .join(' ');
+      const rowTokens = new Set(rowText.split(/\s+/).filter(Boolean));
+      const overlap = [...messageTokens].filter((token) => rowTokens.has(token)).length;
+      return { row, score: overlap };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score);
+
+  return scored[0]?.row || null;
+}
+
 function fetchGoogleSheetData(sheetUrl) {
   return new Promise((resolve, reject) => {
     const normalizedUrl = normalizeGoogleSheetUrl(sheetUrl);
@@ -111,9 +142,18 @@ function fetchGoogleSheetData(sheetUrl) {
   });
 }
 
-module.exports = {
+const exportedApi = {
   normalizeGoogleSheetUrl,
   parseGoogleSheetPayload,
   formatSheetRowsForPrompt,
+  findBestSheetMatch,
   fetchGoogleSheetData
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = exportedApi;
+}
+
+if (typeof window !== 'undefined') {
+  window.rockwellSheetService = exportedApi;
+}
