@@ -5,6 +5,9 @@ const quickButtons = document.querySelectorAll('.quick-btn');
 const backendUrl = typeof window !== 'undefined' && window.ROCKWELL_BACKEND_URL && window.ROCKWELL_BACKEND_URL.trim()
   ? window.ROCKWELL_BACKEND_URL.trim()
   : null;
+const sheetUrl = typeof window !== 'undefined' && window.ROCKWELL_SHEET_URL && window.ROCKWELL_SHEET_URL.trim()
+  ? window.ROCKWELL_SHEET_URL.trim()
+  : null;
 
 const greeting = {
   role: 'bot',
@@ -39,7 +42,7 @@ async function fetchBackendResponse(userText) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message: userText })
+      body: JSON.stringify({ message: userText, sheetUrl })
     });
 
     if (!response.ok) {

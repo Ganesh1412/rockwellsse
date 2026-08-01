@@ -25,11 +25,13 @@ To use a remote backend with the GitHub Pages frontend:
 
 - Deploy your backend API separately and expose a POST endpoint that accepts `{ message }` and returns `{ reply }`.
 - Set `window.ROCKWELL_BACKEND_URL` in `config.js` to the backend URL.
+- Set `window.ROCKWELL_SHEET_URL` to the Google Sheet URL you want the chatbot to query live for each question.
 
 Example `config.js` for production:
 
 ```js
 window.ROCKWELL_BACKEND_URL = 'https://your-backend.example.com/api/chat';
+window.ROCKWELL_SHEET_URL = 'https://docs.google.com/spreadsheets/d/<sheet-id>/edit';
 ```
 
 If the backend is unavailable, the UI will fall back to the local rule-based response logic.

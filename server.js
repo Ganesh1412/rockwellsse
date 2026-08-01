@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { fetchGoogleSheetData, formatSheetRowsForPrompt } = require('./sheetService');
 
 const port = process.env.PORT || 3000;
 const rootDir = __dirname;
@@ -67,13 +68,36 @@ async function handleChat(req, res) {
       return;
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
     if (!apiKey) {
       sendJson(res, 500, {
-        error: 'ANTHROPIC_API_KEY is not configured.'
+        error: 'Anthropic API key is not configured.'
       });
       return;
     }
+
+    const sheetUrl = process.env.GOOGLE_SHEET_URL || body.sheetUrl || '';
+    let sheetContext = '';
+
+    if (sheetUrl) {
+      try {
+        const rows = await fetchGoogleSheetData(sheetUrl);
+        sheetContext = formatSheetRowsForPrompt(rows, 25);
+      } catch (error) {
+        console.error('Failed to fetch sheet data', error);
+      }
+    }
+
+    const prompt = [
+      'You are Claude, a helpful customer support assistant for Rockwell Site Surveys Engineering.',
+      'Answer using the live Google Sheet data provided below at the time of the question.',
+      'If the sheet data does not contain the answer, say that you cannot confirm it from the current data and avoid inventing details.',
+      'Keep answers concise, professional, and grounded in the company\'s business.',
+      'If a prompt is unrelated to support, politely redirect back to support needs.',
+      '',
+      'Live sheet data:',
+      sheetContext || 'No live sheet data was available.'
+    ].join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -84,8 +108,8 @@ async function handleChat(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 300,
-        system: 'You are Claude, a helpful customer support assistant for Rockwell Site Surveys Engineering. Keep answers concise, professional, grounded in the company\'s business, and avoid fabricating details. If a prompt is unrelated to support, politely redirect back to support needs.',
+        max_tokens: 400,
+        system: prompt,
         messages: [{ role: 'user', content: message }]
       })
     });

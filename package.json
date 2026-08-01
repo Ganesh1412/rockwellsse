@@ -4,7 +4,8 @@
   "description": "A polished customer-support chatbot for Rockwell Site Surveys Engineering, styled as a Claude-inspired assistant and deployed as a static site on GitHub Pages.",
   "main": "script.js",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html dist/index.html && cp styles.css dist/styles.css && cp script.js dist/script.js && mkdir -p dist/vendor && cp -r node_modules/@xenova/transformers/dist/. dist/vendor/"
+    "build": "mkdir -p dist && cp index.html dist/index.html && cp styles.css dist/styles.css && cp script.js dist/script.js && mkdir -p dist/vendor && cp -r node_modules/@xenova/transformers/dist/. dist/vendor/",
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
