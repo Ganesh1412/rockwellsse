@@ -22,21 +22,13 @@ async function generateResponse(userText) {
   }
 
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userText })
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || 'Unable to reach model service.');
-    }
-
-    const data = await response.json();
-    return data.reply || 'I am unable to respond right now.';
+    const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js');
+    const generator = await pipeline('text-generation', 'Xenova/distilgpt2');
+    const output = await generator(`Rockwell support: ${userText}`, { max_new_tokens: 40, temperature: 0.8 });
+    const text = output[0]?.generated_text?.replace(`Rockwell support: ${userText}`, '').trim();
+    return text || 'I can help with project scope, site surveys, engineering support, quotes, delivery timing, and contact details.';
   } catch (error) {
-    return `I hit a connection issue while contacting Claude: ${error.message}`;
+    return `I hit a connection issue while loading the model: ${error.message}`;
   }
 }
 
