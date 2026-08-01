@@ -172,43 +172,33 @@ function fetchGoogleSheetData(sheetUrl) {
   return new Promise((resolve, reject) => {
     const normalizedUrl = normalizeGoogleSheetUrl(sheetUrl);
 
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      const script = document.createElement('script');
-      script.src = normalizedUrl;
-      script.async = true;
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      const timeoutId = setTimeout(() => reject(new Error('Google Sheet request timed out')), 15000);
 
-      const cleanup = () => {
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
+      fetch(normalizedUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0'
         }
-      };
-
-      const timeoutId = setTimeout(() => {
-        cleanup();
-        reject(new Error('Google Sheet request timed out'));
-      }, 10000);
-
-      const originalSetResponse = window.google?.visualization?.Query?.setResponse;
-      window.google = window.google || {};
-      window.google.visualization = window.google.visualization || {};
-      window.google.visualization.Query = window.google.visualization.Query || {};
-      window.google.visualization.Query.setResponse = (payload) => {
-        clearTimeout(timeoutId);
-        cleanup();
-        try {
-          resolve(parseGoogleSheetPayload(payload));
-        } catch (error) {
-          reject(new Error(`Unable to parse Google Sheet response: ${error.message}`));
-        }
-      };
-
-      script.onerror = () => {
-        clearTimeout(timeoutId);
-        cleanup();
-        reject(new Error('Unable to load Google Sheet response'));
-      };
-
-      document.head.appendChild(script);
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Google Sheet request failed with status ${response.status}`);
+          }
+          return response.text();
+        })
+        .then((body) => {
+          clearTimeout(timeoutId);
+          try {
+            resolve(parseGoogleSheetPayload(body));
+          } catch (error) {
+            reject(new Error(`Unable to parse Google Sheet response: ${error.message}`));
+          }
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
       return;
     }
 
