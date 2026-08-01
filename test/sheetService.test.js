@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseGoogleSheetPayload, formatSheetRowsForPrompt } = require('../sheetService');
+const { parseGoogleSheetPayload, formatSheetRowsForPrompt, buildSheetAnswer } = require('../sheetService');
 
 test('parses Google visualization rows into simple objects', () => {
   const payload = {
@@ -35,4 +35,27 @@ test('formats rows into a compact prompt snippet', () => {
 
   assert.match(text, /Question/);
   assert.match(text, /We provide surveys/);
+});
+
+test('builds a helpful service list answer from sheet rows', () => {
+  const rows = [
+    { service_name: 'Residential Structural Survey', category: 'Structural Surveys', fee_eur: '650' },
+    { service_name: 'Pre-Purchase Structural Inspection', category: 'Structural Inspections', fee_eur: '480' }
+  ];
+
+  const answer = buildSheetAnswer('What services do you offer?', rows);
+
+  assert.match(answer, /Residential Structural Survey/);
+  assert.match(answer, /Pre-Purchase Structural Inspection/);
+});
+
+test('builds a pricing answer for a specific service', () => {
+  const rows = [
+    { service_name: 'Residential Structural Survey', category: 'Structural Surveys', fee_eur: '650' },
+    { service_name: 'Pre-Purchase Structural Inspection', category: 'Structural Inspections', fee_eur: '480' }
+  ];
+
+  const answer = buildSheetAnswer('How much is the Residential Structural Survey?', rows);
+
+  assert.match(answer, /650/);
 });

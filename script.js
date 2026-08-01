@@ -28,18 +28,9 @@ async function fetchSheetFallbackAnswer(userText) {
 
     const text = await response.text();
     const rows = window.rockwellSheetService.parseGoogleSheetPayload(text);
-    const match = window.rockwellSheetService.findBestSheetMatch(rows, userText);
+    const answer = window.rockwellSheetService.buildSheetAnswer(userText, rows);
 
-    if (!match) {
-      return null;
-    }
-
-    const answerValues = Object.entries(match)
-      .filter(([key]) => key.toLowerCase() !== 'service_id')
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(' | ');
-
-    return answerValues || null;
+    return answer || null;
   } catch (error) {
     return null;
   }

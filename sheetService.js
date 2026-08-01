@@ -103,12 +103,53 @@ function findBestSheetMatch(rows, message) {
         .join(' ');
       const rowTokens = new Set(rowText.split(/\s+/).filter(Boolean));
       const overlap = [...messageTokens].filter((token) => rowTokens.has(token)).length;
-      return { row, score: overlap };
+      const serviceName = normalizeText(row.service_name || row.Service || row['service name'] || '');
+      const serviceNameTokens = new Set(serviceName.split(/\s+/).filter(Boolean));
+      const serviceNameOverlap = [...messageTokens].filter((token) => serviceNameTokens.has(token)).length;
+      const score = overlap + serviceNameOverlap;
+      return { row, score };
     })
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score);
 
   return scored[0]?.row || null;
+}
+
+function buildSheetAnswer(message, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null;
+  }
+
+  const normalizedMessage = normalizeText(message);
+  const asksForServices = /service|services|offer|offerings|what do you offer|what services/i.test(message);
+  const asksForPrice = /price|cost|fee|how much|pricing|quote/i.test(message);
+
+  if (asksForServices) {
+    const names = rows
+      .map((row) => row.service_name || row.Service || row['service name'] || '')
+      .filter(Boolean)
+      .slice(0, 6);
+    return `We offer: ${names.join(', ')}.`;
+  }
+
+  const directMatch = findBestSheetMatch(rows, message);
+  if (!directMatch) {
+    return null;
+  }
+
+  if (asksForPrice) {
+    const fee = directMatch.fee_eur || directMatch.price || directMatch.cost || '';
+    if (fee) {
+      return `${directMatch.service_name || directMatch.Service || directMatch['service name']} costs ${fee} EUR.`;
+    }
+  }
+
+  const details = Object.entries(directMatch)
+    .filter(([key]) => !['service_id'].includes(key.toLowerCase()))
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' | ');
+
+  return details || null;
 }
 
 function fetchGoogleSheetData(sheetUrl) {
@@ -147,6 +188,7 @@ const exportedApi = {
   parseGoogleSheetPayload,
   formatSheetRowsForPrompt,
   findBestSheetMatch,
+  buildSheetAnswer,
   fetchGoogleSheetData
 };
 
