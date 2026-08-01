@@ -97,3 +97,24 @@ test('exposes the sheet service on window for browser use', () => {
   assert.ok(context.window.rockwellSheetService);
   assert.equal(typeof context.window.rockwellSheetService.buildSheetReply, 'function');
 });
+
+test('loads in a browser-like environment without require', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'sheetService.js'), 'utf8');
+  const context = {
+    window: {},
+    document: {},
+    console,
+    setTimeout,
+    clearTimeout,
+    URL,
+    Buffer,
+    module: { exports: {} },
+    exports: {},
+    globalThis: {}
+  };
+  context.window = context;
+  context.globalThis = context;
+
+  assert.doesNotThrow(() => vm.runInNewContext(source, context, { filename: 'sheetService.js' }));
+  assert.ok(context.window.rockwellSheetService);
+});

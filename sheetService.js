@@ -1,4 +1,11 @@
-const https = require('https');
+let https = null;
+if (typeof require === 'function') {
+  try {
+    https = require('https');
+  } catch (error) {
+    https = null;
+  }
+}
 
 function normalizeGoogleSheetUrl(sheetUrl) {
   if (!sheetUrl) {
@@ -202,6 +209,11 @@ function fetchGoogleSheetData(sheetUrl) {
       };
 
       document.head.appendChild(script);
+      return;
+    }
+
+    if (!https) {
+      reject(new Error('HTTPS module unavailable in this environment'));
       return;
     }
 
