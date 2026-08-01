@@ -22,25 +22,14 @@ async function fetchSheetFallbackAnswer(userText) {
   }
 
   try {
-    const normalizedUrl = window.rockwellSheetService.normalizeGoogleSheetUrl(sheetUrl);
-    const response = await fetch(normalizedUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      cache: 'no-store'
-    });
-    if (!response.ok) {
-      return null;
-    }
-
-    const text = await response.text();
-    const rows = window.rockwellSheetService.parseGoogleSheetPayload(text);
+    const rows = await window.rockwellSheetService.fetchGoogleSheetData(sheetUrl);
     const answer = window.rockwellSheetService.buildSheetAnswer(userText, rows);
 
     if (answer) {
       return answer;
     }
 
-    const fallbackRows = rows.length > 0 ? rows : [];
-    return window.rockwellSheetService.buildSheetReply(userText, fallbackRows);
+    return window.rockwellSheetService.buildSheetReply(userText, rows);
   } catch (error) {
     return null;
   }
