@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchGoogleSheetData, formatSheetRowsForPrompt, buildSheetReply } = require('./sheetService');
+const { fetchGoogleSheetData, formatSheetRowsForPrompt, buildSheetAnswer, buildSheetReply } = require('./sheetService');
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
 
@@ -81,6 +81,12 @@ async function handleChat(req, res) {
       } catch (error) {
         console.error('Failed to fetch sheet data', error);
       }
+    }
+
+    const sheetAnswer = buildSheetAnswer(message, rows);
+    if (sheetAnswer) {
+      sendJson(res, 200, { reply: sheetAnswer });
+      return;
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;

@@ -22,8 +22,11 @@ async function fetchSheetFallbackAnswer(userText) {
   }
 
   try {
+    console.log('Loading sheet data for prompt:', userText);
     const rows = await window.rockwellSheetService.fetchGoogleSheetData(sheetUrl);
+    console.log('Loaded sheet rows:', rows.length);
     const answer = window.rockwellSheetService.buildSheetAnswer(userText, rows);
+    console.log('Sheet answer:', answer);
 
     if (answer) {
       return answer;
@@ -31,6 +34,7 @@ async function fetchSheetFallbackAnswer(userText) {
 
     return window.rockwellSheetService.buildSheetReply(userText, rows);
   } catch (error) {
+    console.error('Sheet fallback failed:', error);
     return null;
   }
 }

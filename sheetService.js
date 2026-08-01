@@ -166,7 +166,6 @@ function fetchGoogleSheetData(sheetUrl) {
     const normalizedUrl = normalizeGoogleSheetUrl(sheetUrl);
 
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      const callbackName = `rockwellSheetLoad_${Date.now()}_${Math.random().toString(16).slice(2)}`;
       const script = document.createElement('script');
       script.src = normalizedUrl;
       script.async = true;
@@ -175,18 +174,6 @@ function fetchGoogleSheetData(sheetUrl) {
         if (script.parentNode) {
           script.parentNode.removeChild(script);
         }
-
-        if (window.google?.visualization?.Query?.setResponse) {
-          const originalSetResponse = window.__rockwellOriginalSetResponse;
-          if (originalSetResponse) {
-            window.google.visualization.Query.setResponse = originalSetResponse;
-          } else {
-            delete window.google.visualization.Query.setResponse;
-          }
-        }
-
-        delete window.__rockwellOriginalSetResponse;
-        delete window[callbackName];
       };
 
       const timeoutId = setTimeout(() => {
@@ -194,7 +181,7 @@ function fetchGoogleSheetData(sheetUrl) {
         reject(new Error('Google Sheet request timed out'));
       }, 10000);
 
-      window.__rockwellOriginalSetResponse = window.google?.visualization?.Query?.setResponse;
+      const originalSetResponse = window.google?.visualization?.Query?.setResponse;
       window.google = window.google || {};
       window.google.visualization = window.google.visualization || {};
       window.google.visualization.Query = window.google.visualization.Query || {};
