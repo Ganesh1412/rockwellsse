@@ -17,13 +17,13 @@ const greeting = {
 };
 
 async function fetchSheetFallbackAnswer(userText) {
-  if (!sheetUrl || !window.rockwellSheetService) {
+  if (!window.rockwellSheetService) {
     return null;
   }
 
   try {
     console.log('Loading sheet data for prompt:', userText);
-    const rows = await window.rockwellSheetService.fetchGoogleSheetData(sheetUrl);
+    const rows = await window.rockwellSheetService.fetchGoogleSheetData(sheetUrl || '/data/sheet-data.json');
     console.log('Loaded sheet rows:', rows.length);
     const answer = window.rockwellSheetService.buildSheetAnswer(userText, rows);
     console.log('Sheet answer:', answer);

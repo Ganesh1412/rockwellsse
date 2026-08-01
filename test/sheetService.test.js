@@ -74,6 +74,14 @@ test('builds a fallback reply from sheet rows when no AI backend is available', 
   assert.match(reply, /650/);
 });
 
+test('accepts pre-fetched row arrays from a local data file', () => {
+  const rows = [
+    { service_name: 'Residential Structural Survey', category: 'Structural Surveys', fee_eur: '650' }
+  ];
+
+  assert.deepEqual(parseGoogleSheetPayload(rows), rows);
+});
+
 test('exposes the sheet service on window for browser use', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'sheetService.js'), 'utf8');
   const context = {

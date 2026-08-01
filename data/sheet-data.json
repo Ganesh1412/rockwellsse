@@ -1,0 +1,41 @@
+[
+  {
+    "service_id": "RS001",
+    "service_name": "Residential Structural Survey",
+    "category": "Structural Surveys",
+    "region": "Dublin",
+    "fee_eur": "650",
+    "duration_days": "2",
+    "requires_site_visit": "Yes",
+    "availability": "Mon-Fri",
+    "slots_this_week": "4",
+    "special_offer": "",
+    "description": "A qualified structural engineer inspects your home and issues a signed report on its condition and load-bearing integrity."
+  },
+  {
+    "service_id": "RS002",
+    "service_name": "Commercial Building Condition Survey",
+    "category": "Structural Surveys",
+    "region": "Cork Harbour",
+    "fee_eur": "2400",
+    "duration_days": "5",
+    "requires_site_visit": "Yes",
+    "availability": "By appointment",
+    "slots_this_week": "2",
+    "special_offer": "10% off for bookings before month end",
+    "description": "A detailed condition assessment of commercial premises covering fabric, structure and defect diagnosis."
+  },
+  {
+    "service_id": "RS003",
+    "service_name": "Pre-Purchase Structural Inspection",
+    "category": "Structural Inspections",
+    "region": "Galway",
+    "fee_eur": "480",
+    "duration_days": "1",
+    "requires_site_visit": "Yes",
+    "availability": "Mon-Fri",
+    "slots_this_week": "6",
+    "special_offer": "",
+    "description": "An independent pre-purchase inspection that flags structural risks before you commit to buying a property."
+  }
+]

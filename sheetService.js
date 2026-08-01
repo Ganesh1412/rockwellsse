@@ -30,6 +30,10 @@ function parseGoogleSheetPayload(payload) {
     return [];
   }
 
+  if (Array.isArray(payload)) {
+    return payload.filter((row) => row && typeof row === 'object');
+  }
+
   if (typeof payload === 'string') {
     const trimmed = payload.trim();
     const wrappedMatch = trimmed.match(/google\.visualization\.Query\.setResponse\((.*)\)\s*;?\s*$/s);
@@ -197,6 +201,18 @@ function fetchGoogleSheetData(sheetUrl) {
         })
         .catch((error) => {
           clearTimeout(timeoutId);
+          if (sheetUrl && typeof sheetUrl === 'string' && sheetUrl.startsWith('/')) {
+            fetch(sheetUrl)
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`Local sheet data request failed with status ${response.status}`);
+                }
+                return response.json();
+              })
+              .then((payload) => resolve(parseGoogleSheetPayload(payload)))
+              .catch((fallbackError) => reject(fallbackError));
+            return;
+          }
           reject(error);
         });
       return;
