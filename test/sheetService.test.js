@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseGoogleSheetPayload, formatSheetRowsForPrompt, buildSheetAnswer } = require('../sheetService');
+const { parseGoogleSheetPayload, formatSheetRowsForPrompt, buildSheetAnswer, buildSheetReply } = require('../sheetService');
 
 test('parses Google visualization rows into simple objects', () => {
   const payload = {
@@ -58,4 +58,15 @@ test('builds a pricing answer for a specific service', () => {
   const answer = buildSheetAnswer('How much is the Residential Structural Survey?', rows);
 
   assert.match(answer, /650/);
+});
+
+test('builds a fallback reply from sheet rows when no AI backend is available', () => {
+  const rows = [
+    { service_name: 'Residential Structural Survey', category: 'Structural Surveys', fee_eur: '650' },
+    { service_name: 'Pre-Purchase Structural Inspection', category: 'Structural Inspections', fee_eur: '480' }
+  ];
+
+  const reply = buildSheetReply('How much is the Residential Structural Survey?', rows);
+
+  assert.match(reply, /650/);
 });

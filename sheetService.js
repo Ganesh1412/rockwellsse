@@ -152,6 +152,15 @@ function buildSheetAnswer(message, rows) {
   return details || null;
 }
 
+function buildSheetReply(message, rows) {
+  const answer = buildSheetAnswer(message, rows);
+  if (answer) {
+    return answer;
+  }
+
+  return 'I can help with surveys, engineering support, pricing, delivery timelines, and contact details. Tell me what you need and I will help you right away.';
+}
+
 function fetchGoogleSheetData(sheetUrl) {
   return new Promise((resolve, reject) => {
     const normalizedUrl = normalizeGoogleSheetUrl(sheetUrl);
@@ -189,6 +198,7 @@ const exportedApi = {
   formatSheetRowsForPrompt,
   findBestSheetMatch,
   buildSheetAnswer,
+  buildSheetReply,
   fetchGoogleSheetData
 };
 

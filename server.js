@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchGoogleSheetData, formatSheetRowsForPrompt } = require('./sheetService');
+const { fetchGoogleSheetData, formatSheetRowsForPrompt, buildSheetReply } = require('./sheetService');
 
 const port = process.env.PORT || 3000;
 const rootDir = __dirname;
@@ -68,24 +68,24 @@ async function handleChat(req, res) {
       return;
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
-    if (!apiKey) {
-      sendJson(res, 500, {
-        error: 'Anthropic API key is not configured.'
-      });
-      return;
-    }
-
     const sheetUrl = process.env.GOOGLE_SHEET_URL || body.sheetUrl || '';
+    let rows = [];
     let sheetContext = '';
 
     if (sheetUrl) {
       try {
-        const rows = await fetchGoogleSheetData(sheetUrl);
+        rows = await fetchGoogleSheetData(sheetUrl);
         sheetContext = formatSheetRowsForPrompt(rows, 25);
       } catch (error) {
         console.error('Failed to fetch sheet data', error);
       }
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
+    if (!apiKey) {
+      const reply = buildSheetReply(message, rows);
+      sendJson(res, 200, { reply });
+      return;
     }
 
     const prompt = [
@@ -116,7 +116,8 @@ async function handleChat(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      sendJson(res, response.status, { error: 'Anthropic request failed', detail: errorText });
+      const fallbackReply = buildSheetReply(message, rows);
+      sendJson(res, 200, { reply: fallbackReply, error: 'Anthropic request failed', detail: errorText });
       return;
     }
 

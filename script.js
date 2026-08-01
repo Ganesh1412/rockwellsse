@@ -2,9 +2,11 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const messageInput = document.getElementById('messageInput');
 const quickButtons = document.querySelectorAll('.quick-btn');
-const backendUrl = typeof window !== 'undefined' && window.ROCKWELL_BACKEND_URL && window.ROCKWELL_BACKEND_URL.trim()
+const configuredBackendUrl = typeof window !== 'undefined' && window.ROCKWELL_BACKEND_URL && window.ROCKWELL_BACKEND_URL.trim()
   ? window.ROCKWELL_BACKEND_URL.trim()
   : null;
+const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const backendUrl = configuredBackendUrl || (isLocalHost ? `http://${window.location.hostname}:3000/api/chat` : '/api/chat');
 const sheetUrl = typeof window !== 'undefined' && window.ROCKWELL_SHEET_URL && window.ROCKWELL_SHEET_URL.trim()
   ? window.ROCKWELL_SHEET_URL.trim()
   : null;
@@ -33,7 +35,12 @@ async function fetchSheetFallbackAnswer(userText) {
     const rows = window.rockwellSheetService.parseGoogleSheetPayload(text);
     const answer = window.rockwellSheetService.buildSheetAnswer(userText, rows);
 
-    return answer || null;
+    if (answer) {
+      return answer;
+    }
+
+    const fallbackRows = rows.length > 0 ? rows : [];
+    return window.rockwellSheetService.buildSheetReply(userText, fallbackRows);
   } catch (error) {
     return null;
   }
