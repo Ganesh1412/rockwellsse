@@ -21,7 +21,10 @@ async function fetchSheetFallbackAnswer(userText) {
 
   try {
     const normalizedUrl = window.rockwellSheetService.normalizeGoogleSheetUrl(sheetUrl);
-    const response = await fetch(normalizedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const response = await fetch(normalizedUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      cache: 'no-store'
+    });
     if (!response.ok) {
       return null;
     }
@@ -64,7 +67,8 @@ async function fetchBackendResponse(userText) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message: userText, sheetUrl })
+      body: JSON.stringify({ message: userText, sheetUrl }),
+      cache: 'no-store'
     });
 
     if (!response.ok) {
