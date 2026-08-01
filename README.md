@@ -19,3 +19,17 @@ Then visit http://127.0.0.1:8000/
 
 ## Deployment
 The site is published from the main branch through the GitHub Pages workflow in .github/workflows/deploy.yml.
+
+## Backend integration
+To use a remote backend with the GitHub Pages frontend:
+
+- Deploy your backend API separately and expose a POST endpoint that accepts `{ message }` and returns `{ reply }`.
+- Set `window.ROCKWELL_BACKEND_URL` in `config.js` to the backend URL.
+
+Example `config.js` for production:
+
+```js
+window.ROCKWELL_BACKEND_URL = 'https://your-backend.example.com/api/chat';
+```
+
+If the backend is unavailable, the UI will fall back to the local rule-based response logic.

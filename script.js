@@ -2,7 +2,9 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const messageInput = document.getElementById('messageInput');
 const quickButtons = document.querySelectorAll('.quick-btn');
-const backendUrl = '/api/chat';
+const backendUrl = typeof window !== 'undefined' && window.ROCKWELL_BACKEND_URL && window.ROCKWELL_BACKEND_URL.trim()
+  ? window.ROCKWELL_BACKEND_URL.trim()
+  : null;
 
 const greeting = {
   role: 'bot',
@@ -27,6 +29,10 @@ function addMessage(role, text) {
 }
 
 async function fetchBackendResponse(userText) {
+  if (!backendUrl) {
+    return null;
+  }
+
   try {
     const response = await fetch(backendUrl, {
       method: 'POST',
