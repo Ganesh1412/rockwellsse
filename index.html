@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rockwell Support Chat</title>
+    <meta
+      name="description"
+      content="Claude-style customer support chatbot for Rockwell Site Surveys Engineering."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <p class="eyebrow">Rockwell Site Surveys Engineering</p>
+          <h1>Claude-powered support assistant</h1>
+          <p>
+            Ask about surveys, engineering support, delivery windows, pricing, or
+            how to reach the team.
+          </p>
+          <div class="hero-actions">
+            <button class="quick-btn" data-prompt="What services do you offer?">
+              Services
+            </button>
+            <button class="quick-btn" data-prompt="How fast can I get a quote?">
+              Quote timeline
+            </button>
+            <button class="quick-btn" data-prompt="How do I contact support?">
+              Contact support
+            </button>
+          </div>
+        </div>
+
+        <div class="chat-card">
+          <div class="chat-header">
+            <div>
+              <h2>Support Chat</h2>
+              <p>Claude-style assistance • live on GitHub Pages</p>
+            </div>
+            <span class="status-pill">Online</span>
+          </div>
+
+          <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+
+          <form id="chatForm" class="chat-form">
+            <input
+              id="messageInput"
+              type="text"
+              placeholder="Type your question here..."
+              autocomplete="off"
+              required
+            />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
