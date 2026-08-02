@@ -5,6 +5,7 @@ const { fetchGoogleSheetData, formatSheetRowsForPrompt, findBestSheetMatch, buil
 const { detectWeatherIntent, buildWeatherReply } = require('./weatherService');
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
+const DEFAULT_ALLOWED_ORIGINS = ['https://ganesh1412.github.io', 'https://ganesh1412.github.io/rockwellsse'];
 
 const port = process.env.PORT || 3000;
 const rootDir = __dirname;
@@ -23,6 +24,34 @@ const mimeTypes = {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(payload));
+}
+
+function getAllowedOrigins() {
+  const configured = process.env.CORS_ALLOWED_ORIGINS || '';
+  if (!configured.trim()) {
+    return DEFAULT_ALLOWED_ORIGINS;
+  }
+
+  return configured
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function applyCorsHeaders(req, res) {
+  const requestOrigin = req.headers.origin || '';
+  const allowedOrigins = getAllowedOrigins();
+
+  if (allowedOrigins.includes('*')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
 }
 
 function serveFile(res, filePath) {
@@ -176,6 +205,14 @@ async function handleChat(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  applyCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   const pathname = getRequestPath(req.url);
 
   if (req.method === 'GET' && pathname === '/healthz') {
