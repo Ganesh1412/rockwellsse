@@ -1,7 +1,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchGoogleSheetData, formatSheetRowsForPrompt, buildSheetAnswer, buildSheetReply } = require('./sheetService');
+const { fetchGoogleSheetData, formatSheetRowsForPrompt, findBestSheetMatch, buildSheetAnswer, buildSheetReply } = require('./sheetService');
+const { detectWeatherIntent, buildWeatherReply } = require('./weatherService');
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
 
@@ -60,6 +61,20 @@ function readBody(req) {
   });
 }
 
+function buildServiceSnapshotForMessage(message, rows) {
+  const match = findBestSheetMatch(rows, message);
+  if (!match) {
+    return '';
+  }
+
+  const serviceName = match.service_name || match.Service || match['service name'] || 'Selected service';
+  const fee = match.fee_eur || match.price || match.cost || 'N/A';
+  const slots = match.slots_this_week || match.slots || 'N/A';
+  const availability = match.availability || match.Availability || 'N/A';
+
+  return `Service details from live sheet: ${serviceName}. Fee: ${fee} EUR. Slots this week: ${slots}. Availability: ${availability}.`;
+}
+
 async function handleChat(req, res) {
   try {
     const body = await readBody(req);
@@ -73,6 +88,7 @@ async function handleChat(req, res) {
     const sheetUrl = process.env.GOOGLE_SHEET_URL || body.sheetUrl || DEFAULT_SHEET_URL;
     let rows = [];
     let sheetContext = '';
+    let weatherError = null;
 
     if (sheetUrl) {
       try {
@@ -81,6 +97,28 @@ async function handleChat(req, res) {
       } catch (error) {
         console.error('Failed to fetch sheet data', error);
       }
+    }
+
+    try {
+      const weatherReply = await buildWeatherReply(message, rows);
+      if (weatherReply) {
+        const serviceSnapshot = buildServiceSnapshotForMessage(message, rows);
+        const combinedReply = serviceSnapshot ? `${serviceSnapshot} ${weatherReply}` : weatherReply;
+        sendJson(res, 200, { reply: combinedReply });
+        return;
+      }
+    } catch (error) {
+      weatherError = error;
+      console.error('Failed to fetch weather data', error);
+    }
+
+    if (weatherError && detectWeatherIntent(message)) {
+      const serviceSnapshot = buildServiceSnapshotForMessage(message, rows);
+      const fallback = serviceSnapshot
+        ? `${serviceSnapshot} Live weather is temporarily unavailable right now, so please proceed with normal site safety checks or retry in a few minutes for a weather-assisted recommendation.`
+        : 'Live weather is temporarily unavailable right now. Please retry in a few minutes and I can combine weather with service availability for a safer scheduling recommendation.';
+      sendJson(res, 200, { reply: fallback });
+      return;
     }
 
     const sheetAnswer = buildSheetAnswer(message, rows);
