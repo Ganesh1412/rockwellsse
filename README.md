@@ -6,7 +6,7 @@ A polished customer-support chatbot for Rockwell Site Surveys Engineering, style
 - A polished landing page and chat experience
 - Quick-action prompts for common support questions
 - A lightweight rule-based “brain” for service, pricing, contact, and timeline help
-- A second live tool using the Open-Meteo public API for region weather checks to support site-visit planning
+- A second live tool using the USGS Earthquake Hazards Program feed for recent seismic activity by area
 - A GitHub Actions workflow for automatic deployment to GitHub Pages
 
 ## Local preview

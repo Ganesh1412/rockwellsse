@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { fetchGoogleSheetData, formatSheetRowsForPrompt, findBestSheetMatch, buildSheetAnswer, buildSheetReply } = require('./sheetService');
-const { detectWeatherIntent, buildWeatherReply } = require('./weatherService');
+const { detectEarthquakeIntent, buildEarthquakeReply } = require('./earthquakeService');
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
 const DEFAULT_ALLOWED_ORIGINS = ['https://ganesh1412.github.io', 'https://ganesh1412.github.io/rockwellsse'];
@@ -117,7 +117,7 @@ async function handleChat(req, res) {
     const sheetUrl = process.env.GOOGLE_SHEET_URL || body.sheetUrl || DEFAULT_SHEET_URL;
     let rows = [];
     let sheetContext = '';
-    let weatherError = null;
+    let earthquakeError = null;
 
     if (sheetUrl) {
       try {
@@ -129,23 +129,23 @@ async function handleChat(req, res) {
     }
 
     try {
-      const weatherReply = await buildWeatherReply(message, rows);
-      if (weatherReply) {
+      const earthquakeReply = await buildEarthquakeReply(message, rows);
+      if (earthquakeReply) {
         const serviceSnapshot = buildServiceSnapshotForMessage(message, rows);
-        const combinedReply = serviceSnapshot ? `${serviceSnapshot} ${weatherReply}` : weatherReply;
+        const combinedReply = serviceSnapshot ? `${serviceSnapshot} ${earthquakeReply}` : earthquakeReply;
         sendJson(res, 200, { reply: combinedReply });
         return;
       }
     } catch (error) {
-      weatherError = error;
-      console.error('Failed to fetch weather data', error);
+      earthquakeError = error;
+      console.error('Failed to fetch earthquake data', error);
     }
 
-    if (weatherError && detectWeatherIntent(message)) {
+    if (earthquakeError && detectEarthquakeIntent(message)) {
       const serviceSnapshot = buildServiceSnapshotForMessage(message, rows);
       const fallback = serviceSnapshot
-        ? `${serviceSnapshot} Live weather is temporarily unavailable right now, so please proceed with normal site safety checks or retry in a few minutes for a weather-assisted recommendation.`
-        : 'Live weather is temporarily unavailable right now. Please retry in a few minutes and I can combine weather with service availability for a safer scheduling recommendation.';
+        ? `${serviceSnapshot} USGS seismic activity is temporarily unavailable right now, so please proceed with normal planning checks or retry in a few minutes for an area activity summary.`
+        : 'USGS seismic activity is temporarily unavailable right now. Please retry in a few minutes and I can combine area activity with service availability.';
       sendJson(res, 200, { reply: fallback });
       return;
     }
