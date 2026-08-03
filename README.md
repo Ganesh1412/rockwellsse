@@ -37,6 +37,36 @@ window.ROCKWELL_SHEET_URL = 'https://docs.google.com/spreadsheets/d/<sheet-id>/e
 
 If the backend is unavailable, the UI will fall back to the local rule-based response logic.
 
+## Chat transcript logging to Google Sheet
+
+The backend can now publish each answered question to your assigned Google Sheet as a separate row.
+
+- Data is fetched from the live sheet on every question (already in place).
+- After an answer is generated, the backend sends a summary + details payload to a webhook URL.
+
+### Required environment variables
+
+- `GOOGLE_SHEET_LOG_WEBHOOK_URL`: Your Google Apps Script (or other webhook) URL that appends rows to the assigned sheet.
+
+### Optional environment variables
+
+- `GOOGLE_SHEET_LOG_WEBHOOK_TOKEN`: Bearer token for securing the webhook.
+- `GOOGLE_SHEET_LOG_TIMEOUT_MS`: Webhook timeout in milliseconds (default `8000`).
+
+### Payload fields sent per answer
+
+- `timestamp_utc`
+- `question`
+- `answer`
+- `summary`
+- `details`
+- `answer_source`
+- `live_sheet_url`
+- `live_rows_count`
+- `live_sheet_fetched_at_utc`
+
+If no webhook URL is configured, chat replies continue normally and logging is skipped.
+
 ## LLM validation (pass/fail)
 
 Use this section to verify that the deployed backend behaves like a genuine language model workflow and not a fixed script.

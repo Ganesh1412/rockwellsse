@@ -91,6 +91,129 @@ function formatSheetRowsForPrompt(rows, maxRows = 20) {
     .join('\n');
 }
 
+function parseNumericValue(value) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = String(value).replace(/[^0-9.-]+/g, '');
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getRowServiceName(row) {
+  if (!row || typeof row !== 'object') {
+    return 'Unknown service';
+  }
+
+  return row.service_name || row.Service || row['service name'] || row.service || 'Unknown service';
+}
+
+function getRowFee(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+
+  return parseNumericValue(row.fee_eur || row.price || row.cost || row.Fee || row.Price || row.Cost);
+}
+
+function getRowSlots(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+
+  return parseNumericValue(row.slots_this_week || row.slots || row.availability_slots || row.AvailabilitySlots);
+}
+
+function isImplausibleFee(fee, medianFee) {
+  if (fee == null || fee <= 0) {
+    return false;
+  }
+
+  if (fee >= 100000) {
+    return true;
+  }
+
+  if (medianFee == null || medianFee <= 0) {
+    return fee > 5000;
+  }
+
+  return fee > 5000 || fee >= medianFee * 10;
+}
+
+function asksForSheetAnomalies(message) {
+  return /implausible|absurd|anomal|outlier|suspicious|bad data|data issue|data quality|wrong value|invalid value|zero availability|availability issue/.test(String(message || '').toLowerCase());
+}
+
+function detectSheetAnomalies(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return [];
+  }
+
+  const fees = rows
+    .map((row) => getRowFee(row))
+    .filter((value) => value != null && value > 0)
+    .sort((left, right) => left - right);
+
+  const medianFee = fees.length === 0
+    ? null
+    : fees[Math.floor(fees.length / 2)];
+
+  return rows.flatMap((row) => {
+    const anomalies = [];
+    const serviceName = getRowServiceName(row);
+    const fee = getRowFee(row);
+    const slots = getRowSlots(row);
+    const availability = String(row?.availability || row?.Availability || '').trim().toLowerCase();
+
+    if (isImplausibleFee(fee, medianFee)) {
+      anomalies.push({
+        type: 'implausible_price',
+        serviceName,
+        field: row.fee_eur != null ? 'fee_eur' : row.price != null ? 'price' : 'cost',
+        value: fee,
+        message: `${serviceName} has an implausible price of ${fee} EUR.`
+      });
+    }
+
+    if (
+      slots != null && slots <= 0
+      || ['0', 'zero', 'none', 'unavailable', 'no availability', 'fully booked', 'sold out'].includes(availability)
+    ) {
+      anomalies.push({
+        type: 'zero_availability',
+        serviceName,
+        field: slots != null ? 'slots_this_week' : 'availability',
+        value: slots != null ? slots : availability,
+        message: `${serviceName} has zero availability right now.`
+      });
+    }
+
+    return anomalies;
+  });
+}
+
+function formatSheetAnomalies(rows) {
+  const anomalies = detectSheetAnomalies(rows);
+  if (anomalies.length === 0) {
+    return 'No implausible prices or zero-availability items were found in the current sheet data.';
+  }
+
+  return anomalies.map((anomaly) => anomaly.message).join(' ');
+}
+
+function buildSheetAnomalyAnswer(message, rows) {
+  if (!asksForSheetAnomalies(message)) {
+    return null;
+  }
+
+  return formatSheetAnomalies(rows);
+}
+
 function normalizeText(value) {
   return String(value || '')
     .toLowerCase()
@@ -129,6 +252,11 @@ function findBestSheetMatch(rows, message) {
 function buildSheetAnswer(message, rows) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return null;
+  }
+
+  const anomalyAnswer = buildSheetAnomalyAnswer(message, rows);
+  if (anomalyAnswer) {
+    return anomalyAnswer;
   }
 
   const normalizedMessage = normalizeText(message);
@@ -172,9 +300,23 @@ function buildSheetReply(message, rows) {
   return 'I can help with surveys, engineering support, pricing, delivery timelines, and contact details. Tell me what you need and I will help you right away.';
 }
 
+function addNoCacheParam(url) {
+  if (!url) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('_', String(Date.now()));
+    return parsed.toString();
+  } catch (error) {
+    return url;
+  }
+}
+
 function fetchGoogleSheetData(sheetUrl) {
   return new Promise((resolve, reject) => {
-    const normalizedUrl = normalizeGoogleSheetUrl(sheetUrl);
+    const normalizedUrl = addNoCacheParam(normalizeGoogleSheetUrl(sheetUrl));
 
     if (typeof window !== 'undefined' && typeof fetch === 'function') {
       const timeoutId = setTimeout(() => reject(new Error('Google Sheet request timed out')), 15000);
@@ -182,8 +324,11 @@ function fetchGoogleSheetData(sheetUrl) {
       fetch(normalizedUrl, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0'
-        }
+          'User-Agent': 'Mozilla/5.0',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache'
+        },
+        cache: 'no-store'
       })
         .then((response) => {
           if (!response.ok) {
@@ -225,7 +370,9 @@ function fetchGoogleSheetData(sheetUrl) {
 
     const request = https.get(normalizedUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache'
       }
     }, (response) => {
       const chunks = [];
@@ -255,9 +402,14 @@ const exportedApi = {
   normalizeGoogleSheetUrl,
   parseGoogleSheetPayload,
   formatSheetRowsForPrompt,
+  asksForSheetAnomalies,
+  detectSheetAnomalies,
+  formatSheetAnomalies,
+  isImplausibleFee,
   findBestSheetMatch,
   buildSheetAnswer,
   buildSheetReply,
+  addNoCacheParam,
   fetchGoogleSheetData
 };
 

@@ -1,8 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchGoogleSheetData, formatSheetRowsForPrompt, findBestSheetMatch, buildSheetAnswer, buildSheetReply } = require('./sheetService');
+const { fetchGoogleSheetData, formatSheetRowsForPrompt, asksForSheetAnomalies, formatSheetAnomalies, findBestSheetMatch, buildSheetAnswer, buildSheetReply } = require('./sheetService');
 const { detectEarthquakeIntent, buildEarthquakeReply } = require('./earthquakeService');
+const { publishChatTranscript } = require('./chatLogService');
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
 const DEFAULT_ALLOWED_ORIGINS = ['https://ganesh1412.github.io', 'https://ganesh1412.github.io/rockwellsse'];
@@ -137,8 +138,107 @@ function buildServiceSnapshotForMessage(message, rows) {
   return `Service details from live sheet: ${serviceName}. Fee: ${fee} EUR. Slots this week: ${slots}. Availability: ${availability}.`;
 }
 
+function truncateText(value, maxLength = 280) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function getMatchedServiceName(row) {
+  if (!row || typeof row !== 'object') {
+    return 'none';
+  }
+
+  return row.service_name || row.Service || row['service name'] || 'none';
+}
+
+function buildChatSummary(message, reply) {
+  const questionSnippet = truncateText(message, 90);
+  const answerSnippet = truncateText(reply, 130);
+  return `Q: ${questionSnippet} | A: ${answerSnippet}`;
+}
+
+function buildChatDetails({
+  source,
+  sheetUrl,
+  rows,
+  sheetFetchedAt,
+  matchedRow,
+  sheetFetchError,
+  earthquakeError,
+  anthropicError,
+  responseMs
+}) {
+  const details = [
+    `source=${source}`,
+    `sheet_url=${sheetUrl || 'none'}`,
+    `sheet_rows=${Array.isArray(rows) ? rows.length : 0}`,
+    `sheet_fetched_at_utc=${sheetFetchedAt || 'unavailable'}`,
+    `matched_service=${getMatchedServiceName(matchedRow)}`,
+    `response_ms=${responseMs}`
+  ];
+
+  if (sheetFetchError) {
+    details.push(`sheet_fetch_error=${truncateText(sheetFetchError.message || sheetFetchError, 180)}`);
+  }
+
+  if (earthquakeError) {
+    details.push(`earthquake_error=${truncateText(earthquakeError.message || earthquakeError, 180)}`);
+  }
+
+  if (anthropicError) {
+    details.push(`llm_error=${truncateText(anthropicError, 180)}`);
+  }
+
+  return details.join(' | ');
+}
+
+function logChatAnswer({
+  message,
+  reply,
+  source,
+  sheetUrl,
+  rows,
+  sheetFetchedAt,
+  matchedRow,
+  sheetFetchError,
+  earthquakeError,
+  anthropicError,
+  responseMs
+}) {
+  const event = {
+    timestamp_utc: new Date().toISOString(),
+    question: message,
+    answer: reply,
+    summary: buildChatSummary(message, reply),
+    details: buildChatDetails({
+      source,
+      sheetUrl,
+      rows,
+      sheetFetchedAt,
+      matchedRow,
+      sheetFetchError,
+      earthquakeError,
+      anthropicError,
+      responseMs
+    }),
+    answer_source: source,
+    live_sheet_url: sheetUrl || '',
+    live_rows_count: Array.isArray(rows) ? rows.length : 0,
+    live_sheet_fetched_at_utc: sheetFetchedAt || ''
+  };
+
+  return publishChatTranscript(event).catch((error) => {
+    console.error('Failed to publish chat transcript to Google Sheet webhook', error);
+  });
+}
+
 async function handleChat(req, res) {
   try {
+    const requestStartedAt = Date.now();
     const body = await readBody(req);
     const message = body.message || '';
 
@@ -150,15 +250,40 @@ async function handleChat(req, res) {
     const sheetUrl = process.env.GOOGLE_SHEET_URL || body.sheetUrl || DEFAULT_SHEET_URL;
     let rows = [];
     let sheetContext = '';
+    let sheetFetchedAt = '';
+    let sheetFetchError = null;
     let earthquakeError = null;
+    let matchedRow = null;
 
     if (sheetUrl) {
       try {
         rows = await fetchGoogleSheetData(sheetUrl);
+        sheetFetchedAt = new Date().toISOString();
         sheetContext = formatSheetRowsForPrompt(rows, 25);
       } catch (error) {
+        sheetFetchError = error;
         console.error('Failed to fetch sheet data', error);
       }
+    }
+
+    matchedRow = findBestSheetMatch(rows, message);
+
+    async function respondWithLog(reply, source, responseExtras = {}, meta = {}) {
+      sendJson(res, 200, { reply, ...responseExtras });
+      const responseMs = Date.now() - requestStartedAt;
+      await logChatAnswer({
+        message,
+        reply,
+        source,
+        sheetUrl,
+        rows,
+        sheetFetchedAt,
+        matchedRow,
+        sheetFetchError,
+        earthquakeError: meta.earthquakeError || null,
+        anthropicError: meta.anthropicError || '',
+        responseMs
+      });
     }
 
     try {
@@ -166,7 +291,7 @@ async function handleChat(req, res) {
       if (earthquakeReply) {
         const serviceSnapshot = buildServiceSnapshotForMessage(message, rows);
         const combinedReply = serviceSnapshot ? `${serviceSnapshot} ${earthquakeReply}` : earthquakeReply;
-        sendJson(res, 200, { reply: combinedReply });
+        await respondWithLog(combinedReply, 'earthquake_live');
         return;
       }
     } catch (error) {
@@ -179,29 +304,32 @@ async function handleChat(req, res) {
       const fallback = serviceSnapshot
         ? `${serviceSnapshot} USGS seismic activity is temporarily unavailable right now, so please proceed with normal planning checks or retry in a few minutes for an area activity summary.`
         : 'USGS seismic activity is temporarily unavailable right now. Please retry in a few minutes and I can combine area activity with service availability.';
-      sendJson(res, 200, { reply: fallback });
+      await respondWithLog(fallback, 'earthquake_fallback', {}, { earthquakeError });
       return;
     }
 
     if (!isSupportDomainMessage(message)) {
-      sendJson(res, 200, {
-        reply: 'I can help with Rockwell support requests such as surveys, pricing, availability, project planning, and recent USGS seismic activity by area. Please share a support question and region if relevant.'
-      });
+      const offTopicReply = 'I can help with Rockwell support requests such as surveys, pricing, availability, project planning, and recent USGS seismic activity by area. Please share a support question and region if relevant.';
+      await respondWithLog(offTopicReply, 'off_topic_redirect');
       return;
     }
 
     const sheetAnswer = buildSheetAnswer(message, rows);
     if (sheetAnswer) {
-      sendJson(res, 200, { reply: sheetAnswer });
+      await respondWithLog(sheetAnswer, 'sheet_match');
       return;
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
     if (!apiKey) {
       const reply = buildSheetReply(message, rows);
-      sendJson(res, 200, { reply });
+      await respondWithLog(reply, 'sheet_fallback');
       return;
     }
+
+    const anomalyContext = asksForSheetAnomalies(message)
+      ? ['', 'Current sheet anomaly check:', formatSheetAnomalies(rows)]
+      : [];
 
     const prompt = [
       'You are Claude, a helpful customer support assistant for Rockwell Site Surveys Engineering.',
@@ -211,7 +339,8 @@ async function handleChat(req, res) {
       'If a prompt is unrelated to support, politely redirect back to support needs.',
       '',
       'Live sheet data:',
-      sheetContext || 'No live sheet data was available.'
+      sheetContext || 'No live sheet data was available.',
+      ...anomalyContext
     ].join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -232,13 +361,18 @@ async function handleChat(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       const fallbackReply = buildSheetReply(message, rows);
-      sendJson(res, 200, { reply: fallbackReply, error: 'Anthropic request failed', detail: errorText });
+      await respondWithLog(
+        fallbackReply,
+        'llm_fallback_on_error',
+        { error: 'Anthropic request failed', detail: errorText },
+        { anthropicError: errorText }
+      );
       return;
     }
 
     const data = await response.json();
     const reply = data.content?.[0]?.text || 'I am unable to respond right now.';
-    sendJson(res, 200, { reply });
+    await respondWithLog(reply, 'llm_live');
   } catch (error) {
     sendJson(res, 500, { error: 'Failed to process chat request', detail: error.message });
   }
