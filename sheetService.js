@@ -146,7 +146,7 @@ function isImplausibleFee(fee, medianFee) {
 }
 
 function asksForSheetAnomalies(message) {
-  return /implausible|absurd|anomal|outlier|suspicious|bad data|data issue|data quality|wrong value|invalid value|zero availability|availability issue/.test(String(message || '').toLowerCase());
+  return /implausible|absurd|anomal|anomol|outlier|suspicious|bad data|data issue|data quality|wrong value|invalid value|invalid fee|invalid price|valid fee|valid price|fee value|price value|too high|too low|zero availability|availability issue/.test(String(message || '').toLowerCase());
 }
 
 function detectSheetAnomalies(rows) {
@@ -214,6 +214,24 @@ function buildSheetAnomalyAnswer(message, rows) {
   return formatSheetAnomalies(rows);
 }
 
+function getRowAnomalies(row, rows) {
+  if (!row || !Array.isArray(rows) || rows.length === 0) {
+    return [];
+  }
+
+  const rowServiceName = getRowServiceName(row);
+  return detectSheetAnomalies(rows).filter((anomaly) => anomaly.serviceName === rowServiceName);
+}
+
+function buildMatchedRowAnomalyAnswer(row, rows) {
+  const rowAnomalies = getRowAnomalies(row, rows);
+  if (rowAnomalies.length === 0) {
+    return null;
+  }
+
+  return rowAnomalies.map((anomaly) => anomaly.message).join(' ');
+}
+
 function normalizeText(value) {
   return String(value || '')
     .toLowerCase()
@@ -274,6 +292,11 @@ function buildSheetAnswer(message, rows) {
   const directMatch = findBestSheetMatch(rows, message);
   if (!directMatch) {
     return null;
+  }
+
+  const matchedRowAnomalyAnswer = buildMatchedRowAnomalyAnswer(directMatch, rows);
+  if (matchedRowAnomalyAnswer) {
+    return matchedRowAnomalyAnswer;
   }
 
   if (asksForPrice) {

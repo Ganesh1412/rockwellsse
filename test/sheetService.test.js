@@ -114,6 +114,30 @@ test('answers anomaly questions from current sheet data', () => {
   assert.match(answer, /zero availability/i);
 });
 
+test('treats plain pricing questions for anomalous services as anomaly answers', () => {
+  const rows = [
+    { service_name: 'Residential Structural Survey', fee_eur: '650', slots_this_week: '4', availability: 'Mon-Fri' },
+    { service_name: 'Seismic Vibration Monitoring', fee_eur: '19999999', slots_this_week: '2', availability: 'By appointment' }
+  ];
+
+  const answer = buildSheetAnswer('How much is Seismic Vibration Monitoring?', rows);
+
+  assert.match(answer, /implausible price/i);
+  assert.doesNotMatch(answer, /costs 19999999 EUR/i);
+});
+
+test('recognizes fee validity questions as anomaly questions', () => {
+  const rows = [
+    { service_name: 'Seismic Vibration Monitoring', fee_eur: '19999999', slots_this_week: '2', availability: 'By appointment' }
+  ];
+
+  assert.equal(asksForSheetAnomalies('Is 19999999 a valid fee?'), true);
+
+  const answer = buildSheetAnswer('Is 19999999 a valid fee?', rows);
+
+  assert.match(answer, /implausible price/i);
+});
+
 test('accepts pre-fetched row arrays from a local data file', () => {
   const rows = [
     { service_name: 'Residential Structural Survey', category: 'Structural Surveys', fee_eur: '650' }
