@@ -7,6 +7,7 @@
     "start": "node server.js",
     "build": "mkdir -p dist && cp index.html dist/index.html && cp styles.css dist/styles.css && cp script.js dist/script.js && mkdir -p dist/vendor && cp -r node_modules/@xenova/transformers/dist/. dist/vendor/",
     "test": "node --test",
+    "validate:llm": "node scripts/llmValidationProbe.js",
     "pm2:start": "pm2 start ecosystem.config.js --env production",
     "pm2:stop": "pm2 stop rockwellsse",
     "pm2:restart": "pm2 restart rockwellsse",

@@ -6,6 +6,8 @@ const { detectEarthquakeIntent, buildEarthquakeReply } = require('./earthquakeSe
 
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BbEbzqca1-0A51c5ZJFm6An9XCB8z0fdt4w5T17cH2M/edit?usp=sharing';
 const DEFAULT_ALLOWED_ORIGINS = ['https://ganesh1412.github.io', 'https://ganesh1412.github.io/rockwellsse'];
+const SUPPORT_DOMAIN_KEYWORDS = /survey|surveys|structural|inspection|inspections|engineering|geotechnical|borehole|subsidence|soakaway|site visit|site survey|quote|pricing|price|cost|fee|availability|slot|timeline|lead time|delivery|book|booking|appointment|invoice|project|service|services|contact|email|phone|support|earthquake|seismic|usgs/i;
+const OFF_TOPIC_HINTS = /haiku|poem|poetry|joke|riddle|capital of|quantum|mars|restaurant|recipe|food delivery|order food/i;
 
 const port = process.env.PORT || 3000;
 const rootDir = __dirname;
@@ -90,6 +92,37 @@ function readBody(req) {
   });
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function isSupportDomainMessage(message) {
+  const normalized = normalizeText(message);
+  if (!normalized) {
+    return false;
+  }
+
+  if (detectEarthquakeIntent(normalized)) {
+    return true;
+  }
+
+  const hasSupportKeyword = SUPPORT_DOMAIN_KEYWORDS.test(normalized);
+  if (!hasSupportKeyword) {
+    return false;
+  }
+
+  // Block obvious off-topic creative or general-knowledge prompts from being routed to sheet matching.
+  if (OFF_TOPIC_HINTS.test(normalized)) {
+    const explicitSupportTask = /survey|inspection|engineering|quote|pricing|availability|slots|earthquake|seismic|usgs/.test(normalized);
+    return explicitSupportTask;
+  }
+
+  return true;
+}
+
 function buildServiceSnapshotForMessage(message, rows) {
   const match = findBestSheetMatch(rows, message);
   if (!match) {
@@ -147,6 +180,13 @@ async function handleChat(req, res) {
         ? `${serviceSnapshot} USGS seismic activity is temporarily unavailable right now, so please proceed with normal planning checks or retry in a few minutes for an area activity summary.`
         : 'USGS seismic activity is temporarily unavailable right now. Please retry in a few minutes and I can combine area activity with service availability.';
       sendJson(res, 200, { reply: fallback });
+      return;
+    }
+
+    if (!isSupportDomainMessage(message)) {
+      sendJson(res, 200, {
+        reply: 'I can help with Rockwell support requests such as surveys, pricing, availability, project planning, and recent USGS seismic activity by area. Please share a support question and region if relevant.'
+      });
       return;
     }
 

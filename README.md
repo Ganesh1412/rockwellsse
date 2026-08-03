@@ -36,3 +36,45 @@ window.ROCKWELL_SHEET_URL = 'https://docs.google.com/spreadsheets/d/<sheet-id>/e
 ```
 
 If the backend is unavailable, the UI will fall back to the local rule-based response logic.
+
+## LLM validation (pass/fail)
+
+Use this section to verify that the deployed backend behaves like a genuine language model workflow and not a fixed script.
+
+### Run the probe
+
+```bash
+npm run validate:llm
+```
+
+Optional environment overrides:
+
+```bash
+CHAT_ENDPOINT="https://rockwellsse.fly.dev/api/chat" CHAT_TIMEOUT_MS=15000 npm run validate:llm
+```
+
+### What the probe checks
+
+- Off-topic robustness (3 tests):
+	- `can I order food?`
+	- `write a haiku about concrete foundations`
+	- `what is the capital of Mars?`
+- In-domain behavior (3 tests):
+	- Survey + earthquakes combined prompt
+	- Survey pricing prompt
+	- Earthquake-only prompt
+
+### Pass/fail gates
+
+- `offTopicGate`: All off-topic tests must pass.
+	- Fail if a reply looks like a raw sheet row dump (for example repeated fields such as `service_name`, `fee_eur`, `slots_this_week`).
+	- Pass if the reply is contextual to the off-topic question or politely redirects to support scope.
+- `inDomainGate`: At least 67% of in-domain tests must pass.
+	- Pass requires a meaningful keyword hit ratio for expected domain entities (service, region, earthquake/USGS context).
+- `latencyGate`: Average response latency must be less than or equal to 8000 ms.
+
+Overall status is `PASS` only when all three gates pass. The command exits with code `0` on pass and `1` on fail for CI/CD use.
+
+### Output artifact
+
+The probe prints per-test evidence (`PASS` or `FAIL`, reasons, latency, and raw reply) and a final JSON summary that can be archived in build logs.
